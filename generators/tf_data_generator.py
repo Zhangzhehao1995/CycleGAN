@@ -70,15 +70,25 @@ def make_tf_dataset(file_path, data_dir, data_subdir, target_size, data_suffix, 
                                 lambda: no_action(x)))
     return image_ds
 
-def tfDataGenerator(file_pathA, file_pathB, data_dir, data_suffix, data_subdirs, target_size, batch_size, shuffle, ro_range, zoom_range, dx, dy, dz, aug):
+def tfDataGenerator(file_pathA, file_pathB, data_dir, data_suffix, data_subdirs, target_size, shuffle_buffer, batch_size, shuffle, ro_range, zoom_range, dx, dy, dz, aug):
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
     imageA_ds = make_tf_dataset(file_pathA, data_dir, data_subdirs[0], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
     imageB_ds = make_tf_dataset(file_pathB, data_dir, data_subdirs[1], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
-    imageA_ds = imageA_ds.shuffle(buffer_size=batch_size)
-    imageB_ds = imageB_ds.shuffle(buffer_size=batch_size)
 
-    images_ds = tf.data.Dataset.zip((imageA_ds,imageB_ds))
+    imageA_ds = imageA_ds.shuffle(buffer_size=shuffle_buffer)
+    imageB_ds = imageB_ds.shuffle(buffer_size=shuffle_buffer)
+
+    samplesImageA_ds = len(["" for line in open(file_pathA, "r")])
+    samplesImageB_ds = len(["" for line in open(file_pathB, "r")])
+
+    if samplesImageA_ds>samplesImageB_ds:
+        imageB_ds = imageB_ds.repeat(int(np.ceil(samplesImageA_ds/samplesImageB_ds)))
+    else:
+        imageA_ds = imageA_ds.repeat(int(np.ceil(samplesImageB_ds / samplesImageA_ds)))
+
+
+    images_ds = tf.data.Dataset.zip((imageA_ds, imageB_ds))
 
     images_ds=images_ds.batch(batch_size)
     images_ds=images_ds.repeat()

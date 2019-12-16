@@ -94,10 +94,10 @@ class CycleGAN():
         else:
             samplesTrainA = self.get_file_len(cf.trainA_file_path_full)
             samplesTrainB = self.get_file_len(cf.trainB_file_path_full)
-            samplesTrain = min(samplesTrainA, samplesTrainB)
+            samplesTrain = max(samplesTrainA, samplesTrainB)
             samplesTestA = self.get_file_len(cf.testA_file_path_full)
             samplesTestB = self.get_file_len(cf.testB_file_path_full)
-            samplesValid = min(samplesTestA, samplesTestB)
+            samplesValid = max(samplesTestA, samplesTestB)
             # self.steps_per_epoch = int(np.ceil(get_file_len(cf.train_file_path_full) / float(cf.batch_size_train)))
             # self.validation_steps = int(np.ceil(get_file_len(cf.valid_file_path_full) / float(cf.batch_size_valid)))
             self.steps_per_epoch = int(np.ceil(samplesTrain / float(cf.batch_size_train)))
@@ -352,6 +352,12 @@ class CycleGAN():
                 print('D_loss:', D_loss)
                 sys.stdout.flush()
 
+        temp_D_A_PATH = join(self.cf.savepath, 'saved_models','temp_D_A.h5')
+        temp_D_B_PATH = join(self.cf.savepath, 'saved_models', 'temp_D_B.h5')
+        self.D_A.save_weights(temp_D_A_PATH)
+        self.D_A_static.load_weights(temp_D_A_PATH)
+        self.D_B.save_weights(temp_D_B_PATH)
+        self.D_B_static.load_weights(temp_D_B_PATH)
         # ======= Generator training ==========
         target_data = [real_images_A, real_images_B]  # Compare reconstructed images to real images
         if self.cf.use_multiscale_discriminator:
@@ -419,6 +425,7 @@ class CycleGAN():
         print('reconstruction_loss: ', reconstruction_loss)
         print('DA_loss:', DA_loss)
         print('DB_loss:', DB_loss)
+
 
         if loop_index % 20 == 0:
             # Save temporary images continously
