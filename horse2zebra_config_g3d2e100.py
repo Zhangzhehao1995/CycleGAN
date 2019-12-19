@@ -1,5 +1,5 @@
 # Experiment
-experiment_name              = 'run002'
+experiment_name              = 'run003'
 
 # Dataset
 dataset_name                 = 'horse2zebra'   # Dataset name
@@ -42,8 +42,8 @@ pred_model                   = False           # Predict using the model
 lambda_1                     = 10.0            # Cyclic loss weight A_2_B
 lambda_2                     = 10.0            # Cyclic loss weight B_2_A
 lambda_D                     = 1.0             # Weight for loss from discriminator guess on synthetic images
-generator_iterations         = 5               # Number of generator training iterations in each training loop
-discriminator_iterations     = 1              # Number of generator training iterations in each training loop
+generator_iterations         = 3               # Number of generator training iterations in each training loop
+discriminator_iterations     = 2              # Number of generator training iterations in each training loop
 synthetic_pool_size          = 50
 use_identity_learning        = False
 identity_mapping_modulus     = 10               # Identity mapping will be done each time the iteration number is divisable with this number
@@ -60,7 +60,7 @@ use_resize_convolution       = False
 learning_rate_D              = 2e-4
 learning_rate_G              = 2e-4
 use_linear_decay             = True
-decay_epoch                  = 26  # The epoch where the linear decay of the learning rates start
+decay_epoch                  = 50  # The epoch where the linear decay of the learning rates start
 
 # Debug
 debug                        = False           # Use only few images for debuging
@@ -96,7 +96,7 @@ seed_test                    = 1924            # Random seed for the testing shu
 # Training parameters
 optimizer                    = 'adam'           # Optimizer ['sgd' | 'adam' | 'nadam']
 weight_decay                 = 0.00005         # Weight decay or L2 parameter norm penalty
-n_epochs                     = 50            # Number of epochs during training
+n_epochs                     = 100            # Number of epochs during training
 workers                      = 4
 
 # Callback learning rate scheduler

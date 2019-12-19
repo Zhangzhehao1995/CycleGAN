@@ -32,6 +32,7 @@ OMP: Hint This means that multiple copies of the OpenMP runtime have been linked
 """
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ["HDF5_USE_FILE_LOCKING"] = 'FALSE'
 
 class Experiment(object):
     """Class to load configuration and run experiment."""

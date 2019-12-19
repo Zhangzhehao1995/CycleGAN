@@ -18,15 +18,16 @@ def read_npy_file_image(item):
     #data = data/255.0
     return data
 
-def decode_jpg_and_convert(item):
-    img = tf.image.decode_jpeg(item)
+def decode_jpg_and_convert(item, data_channels):
+    # Convert grey image into RGB with channels=3
+    img = tf.image.decode_jpeg(item, channels=data_channels)
     img = tf.image.convert_image_dtype(img, tf.float32)
     return img
 
-def read_jpg_file_image(item, target_size):
+def read_jpg_file_image(item, data_channels, target_size):
     # read the JPG file, convert to [0,1] float32 and resize to target_size
     img = tf.io.read_file(item)
-    img = decode_jpg_and_convert(img)
+    img = decode_jpg_and_convert(img, data_channels)
     img = tf.image.resize(img, target_size)
     return img
 
@@ -37,7 +38,7 @@ def read_npy_file_label(item,classes):
     data = tf.cast(data,tf.uint8)
     return data
 
-def make_tf_dataset(file_path, data_dir, data_subdir, target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug):
+def make_tf_dataset(file_path, data_dir, data_channels, data_subdir, target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug):
     image_files = []
     fp = open(file_path)
     lines = fp.readlines()
@@ -52,7 +53,7 @@ def make_tf_dataset(file_path, data_dir, data_subdir, target_size, data_suffix, 
     if data_suffix == '.npy':
         image_ds = image_files_ds.map(lambda item: read_npy_file_image(item))
     elif data_suffix == '.jpg':
-        image_ds = image_files_ds.map(lambda item: read_jpg_file_image(item, target_size))
+        image_ds = image_files_ds.map(lambda item: read_jpg_file_image(item, data_channels, target_size))
     else:
         print('ERROR: unknown data_suffix: ' + data_suffix)
         exit()
@@ -70,11 +71,11 @@ def make_tf_dataset(file_path, data_dir, data_subdir, target_size, data_suffix, 
                                 lambda: no_action(x)))
     return image_ds
 
-def tfDataGenerator(file_pathA, file_pathB, data_dir, data_suffix, data_subdirs, target_size, shuffle_buffer, batch_size, shuffle, ro_range, zoom_range, dx, dy, dz, aug):
+def tfDataGenerator(file_pathA, file_pathB, data_dir, data_channels, data_suffix, data_subdirs, target_size, shuffle_buffer, batch_size, shuffle, ro_range, zoom_range, dx, dy, dz, aug):
     AUTOTUNE = tf.data.experimental.AUTOTUNE
 
-    imageA_ds = make_tf_dataset(file_pathA, data_dir, data_subdirs[0], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
-    imageB_ds = make_tf_dataset(file_pathB, data_dir, data_subdirs[1], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
+    imageA_ds = make_tf_dataset(file_pathA, data_dir, data_channels, data_subdirs[0], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
+    imageB_ds = make_tf_dataset(file_pathB, data_dir, data_channels, data_subdirs[1], target_size, data_suffix, ro_range, zoom_range, dx, dy, dz, aug)
 
     imageA_ds = imageA_ds.shuffle(buffer_size=shuffle_buffer)
     imageB_ds = imageB_ds.shuffle(buffer_size=shuffle_buffer)

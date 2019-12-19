@@ -352,8 +352,11 @@ class CycleGAN():
                 print('D_loss:', D_loss)
                 sys.stdout.flush()
 
-        temp_D_A_PATH = join(self.cf.savepath, 'saved_models','temp_D_A.h5')
-        temp_D_B_PATH = join(self.cf.savepath, 'saved_models', 'temp_D_B.h5')
+        directory = join(self.cf.savepath, 'saved_models')
+        if not exists(directory):
+            makedirs(directory)
+        temp_D_A_PATH = join(directory,'temp_D_A')
+        temp_D_B_PATH = join(directory, 'temp_D_B')
         self.D_A.save_weights(temp_D_A_PATH)
         self.D_A_static.load_weights(temp_D_A_PATH)
         self.D_B.save_weights(temp_D_B_PATH)
@@ -506,16 +509,6 @@ class CycleGAN():
                 real_images_A = images[0]
                 real_images_B = images[1]
 
-                # Convert grey image into RGB
-                if real_images_A.shape[3] == 1:
-                    real_images_A = np.repeat(real_images_A, 3, axis=3)
-                if real_images_B.shape[3] == 1:
-                    real_images_B = np.repeat(real_images_B, 3, axis=3)
-
-                if len(real_images_A.shape) == 3:
-                    real_images_A = real_images_A[:, :, :, np.newaxis]
-                    real_images_B = real_images_B[:, :, :, np.newaxis]
-
                 # Run all training steps
                 self._run_training_iteration(loop_index, epoch, real_images_A, real_images_B, ones, zeros, synthetic_pool_A, synthetic_pool_B)
 
@@ -540,7 +533,7 @@ class CycleGAN():
                 print('\n', '\n', '-------------------------Saving images for epoch', epoch, '-------------------------', '\n', '\n')
                 self.saveImages(epoch, real_images_A, real_images_B, tf.shape(real_images_A)[0])
 
-            if epoch % 20 == 0:
+            if epoch % 5 == 0:
                 # self.save_model(self.model)
                 self.save_model(self.D_A, epoch)
                 self.save_model(self.D_B, epoch)
