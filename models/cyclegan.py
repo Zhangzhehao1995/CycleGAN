@@ -4,11 +4,12 @@ import tensorflow as tf
 from tensorflow_addons.layers import InstanceNormalization
 from tensorflow.keras.layers import Layer, Input, Conv2D, Activation, add, BatchNormalization, UpSampling2D, ZeroPadding2D, Conv2DTranspose, Flatten, MaxPooling2D, AveragePooling2D, InputSpec, LeakyReLU, Dense
 
+from tensorflow.keras.initializers import RandomNormal
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.backend import mean
 from tensorflow.keras.models import Model, model_from_json
 from tensorflow.keras.utils import plot_model
-#from tensorflow.keras.engine.topology import Network
+from tensorflow.python.keras.engine.network import Network
 
 import random
 import datetime
@@ -31,6 +32,7 @@ from metrics.loss_functions import lse, cycle_loss
 def save_img(img, fname):
     if len(tf.shape(img)) > 3:
         img = img[tf.constant(0),:,:,:]
+    img = (img + 1) / 2.0
     result_img = tf.image.encode_png(tf.image.convert_image_dtype(img, dtype=tf.uint8))
     tf.io.write_file(tf.constant(fname), result_img)
 
@@ -95,13 +97,14 @@ class CycleGAN():
             samplesTrainA = self.get_file_len(cf.trainA_file_path_full)
             samplesTrainB = self.get_file_len(cf.trainB_file_path_full)
             samplesTrain = max(samplesTrainA, samplesTrainB)
-            samplesTestA = self.get_file_len(cf.testA_file_path_full)
-            samplesTestB = self.get_file_len(cf.testB_file_path_full)
-            samplesValid = max(samplesTestA, samplesTestB)
+            self.steps_per_epoch = int(np.ceil(samplesTrain / float(cf.batch_size_train)))
+            # zzh
             # self.steps_per_epoch = int(np.ceil(get_file_len(cf.train_file_path_full) / float(cf.batch_size_train)))
             # self.validation_steps = int(np.ceil(get_file_len(cf.valid_file_path_full) / float(cf.batch_size_valid)))
-            self.steps_per_epoch = int(np.ceil(samplesTrain / float(cf.batch_size_train)))
-            self.validation_steps = int(np.ceil(samplesValid / float(cf.batch_size_valid)))
+            # samplesTestA = self.get_file_len(cf.testA_file_path_full)
+            # samplesTestB = self.get_file_len(cf.testB_file_path_full)
+            # samplesTest = max(samplesTestA, samplesTestB)
+            # self.test_steps = int(np.ceil(samplesTest / float(cf.batch_size_valid)))
 
 
     def get_file_len(self, file_path_full):
@@ -137,8 +140,8 @@ class CycleGAN():
                          loss_weights=loss_weights_D)
 
         # Use Networks to avoid falsy keras error about weight descripancies
-        self.D_A_static = Model(inputs=image_A, outputs=guess_A, name='D_A_static_model')
-        self.D_B_static = Model(inputs=image_B, outputs=guess_B, name='D_B_static_model')
+        self.D_A_static = Network(inputs=image_A, outputs=guess_A, name='D_A_static_model')
+        self.D_B_static = Network(inputs=image_B, outputs=guess_B, name='D_B_static_model')
 
         # Do note update discriminator weights during generator training
         self.D_A_static.trainable = False
@@ -201,27 +204,37 @@ class CycleGAN():
         # self.G_A2B.summary()
 
     def make(self):
-
-        # Load pretrained weights
-        if not self.cf.load_pretrained:
-            print('   turning off loading pretrained weights not implemented...')
-
         # Build model
         self.make_discriminators()
-
+        print(' Build discriminators successfully...')
         # make generators
         self.make_generators()
+        print(' Build generators successfully...')
 
-        # if cf.resume_training:
+        # Load pretrained weights
+        # zzh
+        if not self.cf.load_pretrained:
+            print(' No loading pretrained weights...')
+        elif not exists(join(self.cf.savepath, 'pretrained_weights')):
+            print(' No pretrained weights exist...')
+            return
+        else:
+            self.load_pretrained_weights(self.G_A2B)
+            self.load_pretrained_weights(self.G_B2A)
+            self.load_pretrained_weights(self.D_A)
+            self.load_pretrained_weights(self.D_B)
+            print(' Load pretrained weights successfully...')
+
+        # if self.cf.resume_training:
         #     model.load_weights(cf.checkpoint_path)
-        #
+
         # Show model structure
         if self.cf.show_model:
             model.summary()
             plot_model(model, to_file=join(self.cf.savepath, 'model.png'))
 
         # Output the model
-        print ('   Model: ' + self.cf.model_name)
+        print('   Model: ' + self.cf.model_name)
 
 
     # Learning rate #
@@ -280,8 +293,6 @@ class CycleGAN():
         #     makedirs(join(result_path, 'Atest'))
         #     makedirs(join(result_path, 'Btest'))
 
-        # testString = ''
-
         for i in range(num_saved_images):
             # if i == num_saved_images:
             #     real_image_A = self.A_test[0]
@@ -305,12 +316,12 @@ class CycleGAN():
             # write images
             print("SHAPE")
             print(tf.shape(real_image_A))
-            save_img(real_image_A[i,:,:,:], join(result_path, str(i) + '_realA.png'))
-            save_img(real_image_B[i,:,:,:], join(result_path, str(i) + '_realB.png'))
-            save_img(synthetic_image_A[i,:,:,:], join(result_path, str(i) + '_syntheticA.png'))
-            save_img(synthetic_image_B[i,:,:,:], join(result_path, str(i) + '_syntheticB.png'))
-            save_img(reconstructed_image_A[i,:,:,:], join(result_path, str(i) + '_reconstructedA.png'))
-            save_img(reconstructed_image_B[i,:,:,:], join(result_path, str(i) + '_reconstructedB.png'))
+            save_img(real_image_A[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_realA.png'))
+            save_img(real_image_B[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_realB.png'))
+            save_img(synthetic_image_A[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_syntheticA.png'))
+            save_img(synthetic_image_B[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_syntheticB.png'))
+            save_img(reconstructed_image_A[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_reconstructedA.png'))
+            save_img(reconstructed_image_B[i,:,:,:], join(result_path, str(epoch) + '_' + str(i) + '_reconstructedB.png'))
 
     # Training #
     def print_ETA(self, start_time, epoch, loop_index):
@@ -352,6 +363,8 @@ class CycleGAN():
                 print('D_loss:', D_loss)
                 sys.stdout.flush()
 
+        '''
+        # zzh
         directory = join(self.cf.savepath, 'saved_models')
         if not exists(directory):
             makedirs(directory)
@@ -361,6 +374,7 @@ class CycleGAN():
         self.D_A_static.load_weights(temp_D_A_PATH)
         self.D_B.save_weights(temp_D_B_PATH)
         self.D_B_static.load_weights(temp_D_B_PATH)
+        '''
         # ======= Generator training ==========
         target_data = [real_images_A, real_images_B]  # Compare reconstructed images to real images
         if self.cf.use_multiscale_discriminator:
@@ -417,8 +431,8 @@ class CycleGAN():
         self.training_history['G_losses'].append(G_loss)
         self.training_history['reconstruction_losses'].append(reconstruction_loss)
 
-        #GA_losses.append(GA_loss)
-        #GB_losses.append(GB_loss)
+        # GA_losses.append(GA_loss)
+        # GB_losses.append(GB_loss)
 
         print('\n')
         print('Epoch----------------', epoch, '/', self.cf.n_epochs)
@@ -525,8 +539,6 @@ class CycleGAN():
 
                 loop_index += 1
 
-
-
             #================== within epoch loop end ==========================
 
             if epoch % self.cf.save_interval == 0:
@@ -549,7 +561,7 @@ class CycleGAN():
         self.save_model(self.D_B, epoch)
         self.save_model(self.G_A2B, epoch)
         self.save_model(self.G_B2A, epoch)
-        print('   Training finished.')
+        print('Training finished.')
 
 
     def predict(self, test_gen, tag='pred'):
@@ -559,58 +571,105 @@ class CycleGAN():
     def test(self, test_gen):
         if not self.cf.test_model:
             return
+        else:
+            test_save_path = join(self.cf.savepath, 'test_results')
+            if not exists(test_save_path):
+                makedirs(test_save_path)
+            print(test_save_path)
 
         print('\n > Testing the model...')
 
         # Load best trained model
-        self.model.load_weights(self.cf.weights_file)
+
+        # zzh
+        start_time = time.time()
+        load_epoch = self.cf.load_epoch_for_test
+        self.load_model_weights(self.G_A2B, load_epoch)
+        self.load_model_weights(self.G_B2A, load_epoch)
+        # self.load_model_weights(self.D_A, load_epoch)
+        # self.load_model_weights(self.D_B, load_epoch)
 
         # get correct number of test samples depending on debugging or not
+        # if debug, will use n_images_test
         if self.cf.n_images_test is not None:
             nb_test_samples = self.cf.n_images_test
         else:
-            nb_test_samples = get_file_len(self.cf.test_file_path_full)
+            samplesTestA = self.get_file_len(self.cf.testA_file_path_full)
+            samplesTestB = self.get_file_len(self.cf.testB_file_path_full)
+            nb_test_samples = max(samplesTestA, samplesTestB)
 
+        test_steps = int(np.ceil(nb_test_samples / float(self.cf.batch_size_test)))
         # Evaluate model
-        start_time = time.time()
-        y_predictions = self.model.predict(test_gen.make_one_shot_iterator(), steps=nb_test_samples)
+        index = 0
+        for images in test_gen:
+
+            real_images_A_test = images[0]
+            real_images_B_test = images[1]
+
+            synthetic_images_B = self.G_A2B.predict_on_batch(real_images_A_test)
+            synthetic_images_A = self.G_B2A.predict_on_batch(real_images_B_test)
+
+            recon_images_A = self.G_B2A.predict_on_batch(synthetic_images_B)
+            recon_images_B = self.G_A2B.predict_on_batch(synthetic_images_A)
+
+            save_img(real_images_A_test[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_realA.png'))
+            save_img(real_images_B_test[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_realB.png'))
+            save_img(synthetic_images_A[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_syntheticA.png'))
+            save_img(synthetic_images_B[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_syntheticB.png'))
+            save_img(recon_images_A[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_reconstructedA.png'))
+            save_img(recon_images_B[0,:,:,:], join(test_save_path, 'test_' + str(index) + '_reconstructedB.png'))
+
+            print('\n')
+            print('Generate synthetic images for testing---------', index, '/', nb_test_samples)
+
+            index += 1
+
+            if index > test_steps:
+                break
+
+        # y_predictions = self.model.predict(test_gen.make_one_shot_iterator(), steps=nb_test_samples)
+        # total_time = time.time() - start_time
+        # fps = float(nb_test_samples) / total_time
+        # s_p_f = total_time / float(nb_test_samples)
+        # print ('   Testing time: {}. FPS: {}. Seconds per Frame: {}'.format(total_time, fps, s_p_f))
+        #
+        # # store predicted labels
+        # result_path = join(self.cf.savepath, 'predicted_labels')
+        # if exists(result_path) == False:
+        #     mkdir(result_path)
+        #
+        # results = []
+        # fp = open(self.cf.test_file_path_full)
+        # image_names = fp.readlines()
+        # fp.close()
+        # for (idx, img_num) in enumerate(image_names):
+        #     if idx > nb_test_samples-1:
+        #         continue
+        #     y_sample_prediction = y_predictions[idx,:,:,:,:]
+        #
+        #     # print('sample: ' + img_num + ', idx: ' + str(idx))
+        #     # print('min: ' + str(np.min(y_sample_prediction)))
+        #     # print('max: ' + str(np.max(y_sample_prediction)))
+        #
+        #     # compress to top probabilty
+        #
+        #     result = np.argmax(y_sample_prediction, axis=-1)
+        #     z=np.shape(result)[-1]
+        #     for i in range(z):
+        #         img_num = img_num.strip('\n')
+        #         save_img(result[:,:,i:i+1], join(result_path, img_num + '_slice'+str(i)+'.png'))
+
+        print('{} pairs of synthetic images have been generated and placed in {}'
+              .format(nb_test_samples, test_save_path))
         total_time = time.time() - start_time
-        fps = float(nb_test_samples) / total_time
-        s_p_f = total_time / float(nb_test_samples)
-        print ('   Testing time: {}. FPS: {}. Seconds per Frame: {}'.format(total_time, fps, s_p_f))
-
-        # store predicted labels
-        result_path = join(self.cf.savepath, 'predicted_labels')
-        if exists(result_path) == False:
-            mkdir(result_path)
-
-        results = []
-        fp = open(self.cf.test_file_path_full)
-        image_names = fp.readlines()
-        fp.close()
-        for (idx, img_num) in enumerate(image_names):
-            if idx > nb_test_samples-1:
-                continue
-            y_sample_prediction = y_predictions[idx,:,:,:,:]
-
-            # print('sample: ' + img_num + ', idx: ' + str(idx))
-            # print('min: ' + str(np.min(y_sample_prediction)))
-            # print('max: ' + str(np.max(y_sample_prediction)))
-
-            # compress to top probabilty
-
-            result = np.argmax(y_sample_prediction, axis=-1)
-            z=np.shape(result)[-1]
-            for i in range(z):
-                img_num = img_num.strip('\n')
-                save_img(result[:,:,i:i+1], join(result_path, img_num + '_slice'+str(i)+'.png'))
-
-
+        print('Testing time: {}'.format(total_time))
 #===============================================================================
 # Architecture functions
 
     def ck(self, x, k, use_normalization):
-        x = Conv2D(filters=k, kernel_size=4, strides=2, padding='same')(x)
+        # zzh: add init
+        init = RandomNormal(stddev=0.02)
+        x = Conv2D(filters=k, kernel_size=4, strides=2, padding='same', kernel_initializer=init)(x)
         # Normalization is not done on the first discriminator layer
         if use_normalization:
             x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
@@ -618,40 +677,45 @@ class CycleGAN():
         return x
 
     def c7Ak(self, x, k):
-        x = Conv2D(filters=k, kernel_size=7, strides=1, padding='valid')(x)
+        init = RandomNormal(stddev=0.02)
+        x = Conv2D(filters=k, kernel_size=7, strides=1, padding='valid', kernel_initializer=init)(x)
         x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
         x = Activation('relu')(x)
         return x
 
     def dk(self, x, k):
-        x = Conv2D(filters=k, kernel_size=3, strides=2, padding='same')(x)
+        init = RandomNormal(stddev=0.02)
+        x = Conv2D(filters=k, kernel_size=3, strides=2, padding='same', kernel_initializer=init)(x)
         x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
         x = Activation('relu')(x)
         return x
 
     def Rk(self, x0):
+        init = RandomNormal(stddev=0.02)
+
         k = int(x0.shape[-1])
         # first layer
         x = ReflectionPadding2D((1,1))(x0)
-        x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid')(x)
+        x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid', kernel_initializer=init)(x)
         x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
         x = Activation('relu')(x)
         # second layer
         x = ReflectionPadding2D((1, 1))(x)
-        x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid')(x)
+        x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid', kernel_initializer=init)(x)
         x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
         # merge
         x = add([x, x0])
         return x
 
     def uk(self, x, k):
+        init = RandomNormal(stddev=0.02)
         # (up sampling followed by 1x1 convolution <=> fractional-strided 1/2)
         if self.cf.use_resize_convolution:
             x = UpSampling2D(size=(2, 2))(x)  # Nearest neighbor upsampling
             x = ReflectionPadding2D((1, 1))(x)
-            x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid')(x)
+            x = Conv2D(filters=k, kernel_size=3, strides=1, padding='valid', kernel_initializer=init)(x)
         else:
-            x = Conv2DTranspose(filters=k, kernel_size=3, strides=2, padding='same')(x)  # this matches fractinoally stided with stride 1/2
+            x = Conv2DTranspose(filters=k, kernel_size=3, strides=2, padding='same', kernel_initializer=init)(x)  # this matches fractinoally stided with stride 1/2
         x = InstanceNormalization(axis=3, center=True, epsilon=1e-5)(x, training=True)
         x = Activation('relu')(x)
         return x
@@ -674,16 +738,21 @@ class CycleGAN():
         # Specify input
         input_img = Input(shape=self.cf.input_shape)
         # Layer 1 (#Instance normalization is not used for this layer)
+        # C64
         x = self.ck(input_img, 64, False)
         # Layer 2
+        # C 128
         x = self.ck(x, 128, True)
         # Layer 3
+        # C 256
         x = self.ck(x, 256, True)
         # Layer 4
+        # C 512
         x = self.ck(x, 512, True)
         # Output layer
         if self.cf.use_patchgan:
-            x = Conv2D(filters=1, kernel_size=4, strides=1, padding='same')(x)
+            init = RandomNormal(stddev=0.02)
+            x = Conv2D(filters=1, kernel_size=4, strides=1, padding='same', kernel_initializer=init)(x)
         else:
             x = Flatten()(x)
             x = Dense(1)(x)
@@ -691,10 +760,13 @@ class CycleGAN():
         return Model(inputs=input_img, outputs=x, name=name)
 
     def modelGenerator(self, name=None):
+        init = RandomNormal(stddev=0.02)
         # Specify input
         input_img = Input(shape=self.cf.input_shape)
         # Layer 1
         x = ReflectionPadding2D((3, 3))(input_img)
+        ''' 
+        # zzh
         x = self.c7Ak(x, 32)
         # Layer 2
         x = self.dk(x, 64)
@@ -721,7 +793,35 @@ class CycleGAN():
         x = Conv2D(self.cf.channel_size, kernel_size=7, strides=1)(x)
         x = Activation('tanh')(x)  # They say they use Relu but really they do not
         return Model(inputs=input_img, outputs=x, name=name)
+        # zzh
+        '''
+        # c7s1-64
+        x = self.c7Ak(x, 64)
+        # Layer 2, d128
+        x = self.dk(x, 128)
+        # Layer 3, d256
+        x = self.dk(x, 256)
 
+        if self.cf.use_multiscale_discriminator:
+            # Layer 3.5
+            x = self.dk(x, 512)
+
+        # Layer 4-12: Residual layer
+        for _ in range(4, 13):
+            x = self.Rk(x)
+
+        if self.cf.use_multiscale_discriminator:
+            # Layer 12.5
+            x = self.uk(x, 256)
+
+        # Layer 13, u128
+        x = self.uk(x, 128)
+        # Layer 14, u64
+        x = self.uk(x, 64)
+        x = ReflectionPadding2D((3, 3))(x)
+        x = Conv2D(self.cf.channel_size, kernel_size=7, strides=1, padding='valid', kernel_initializer=init)(x)
+        x = Activation('tanh')(x)  # They say they use Relu but really they do not
+        return Model(inputs=input_img, outputs=x, name=name)
 #===============================================================================
 # Loading / Saving
 
@@ -749,3 +849,17 @@ class CycleGAN():
             writer = csv.writer(csv_file, delimiter=',')
             writer.writerow(keys)
             writer.writerows(zip(*[history[key] for key in keys]))
+
+    #zzh
+    def load_model_weights(self, model, epoch):
+        # The saved model folder
+        directory = join(self.cf.savepath, 'saved_models')
+        model_path_w = join(directory, '{}_weights_epoch_{}.hdf5'.format(model.name, epoch))
+        model.load_weights(model_path_w)
+
+    def load_pretrained_weights(self, model):
+        # The pretrained model folder
+        directory = join(self.cf.savepath, 'pretrained_weights')
+        # all pretrained models should be save by 'save_weights' with name of 'pretrained_xxx'.
+        model_path_w = join(directory, 'pretrained_{}.hdf5'.format(model.name))
+        model.load_weights(model_path_w)

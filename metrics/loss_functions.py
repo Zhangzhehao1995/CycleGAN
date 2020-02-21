@@ -2,22 +2,20 @@
 from tensorflow.keras.metrics import binary_crossentropy
 import tensorflow.keras.backend as K
 import tensorflow as tf
+import numpy as np
 
 
 def lse(y_true, y_pred):
     loss = tf.reduce_mean(tf.math.squared_difference(y_pred, y_true))
     return loss
 
+
 def cycle_loss(y_true, y_pred):
     loss = tf.reduce_mean(tf.math.abs(y_pred - y_true))
     return loss
 
 
-
-
-# Softmax cross-entropy loss function for pascal voc segmentation
-# and models which do not perform softmax.
-# tensorlow only
+# Softmax cross-entropy loss function for pascal voc segmentation and models which do not perform softmax.
 def softmax_sparse_crossentropy_ignoring_last_label_3d(y_true, y_pred):
 
     y_pred = K.reshape(y_pred, (-1, K.int_shape(y_pred)[-1]))
@@ -31,6 +29,7 @@ def softmax_sparse_crossentropy_ignoring_last_label_3d(y_true, y_pred):
     cross_entropy_mean = K.mean(cross_entropy)
 
     return cross_entropy_mean
+
 
 def weighted_crossentropy(y_true,y_pred):
 
@@ -73,6 +72,7 @@ def asymmetric_loss(y_true,y_pred):
     Ncl=K.cast(K.shape(y_true[-1]),'float32')
     return Ncl-T
 
+
 def weighted_dice_loss(y_true,y_pred):
 
     print (K.int_shape(y_pred))
@@ -85,6 +85,7 @@ def weighted_dice_loss(y_true,y_pred):
     den = K.sum(y_true * y_pred,axis=0)+smooth
     num = K.sum(y_true,axis=0) + K.sum(y_pred,axis=0)+smooth
     return weights*(1-den/num)
+
 
 def dice_loss_3d(y_true,y_pred):
     smooth=1.
@@ -109,12 +110,12 @@ The highest accuracy object detectors to date are based on a two-stage approach 
 https://arxiv.org/abs/1708.02002
 """
 
+
 def focal_loss(y_true, y_pred, gamma=2):
     y_pred /= K.sum(y_pred, axis=-1, keepdims=True)
     eps = K.epsilon()
     y_pred = K.clip(y_pred, eps, 1. - eps)
-    return -K.sum(K.pow(1. - y_pred, gamma) * y_true * K.log(y_pred),
-                  axis=-1)
+    return -K.sum(K.pow(1. - y_pred, gamma) * y_true * K.log(y_pred), axis=-1)
 
 
 def dice(y_true, y_pred, binarise=False, smooth=0.1):

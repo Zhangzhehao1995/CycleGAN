@@ -65,6 +65,10 @@ class Configuration():
         else:
             cf.input_shape = (None, None, cf.channel_size)
 
+        # load_size, zzh
+        if cf.load_size_train is None: cf.load_size_train = cf.target_size_train
+        if cf.load_size_test is None: cf.load_size_test = cf.target_size_test
+
         # paths
         cf.image_path_full = os.path.join(self.dataset_path, cf.image_path)
 
@@ -75,14 +79,21 @@ class Configuration():
 
         # batch sizes
         cf.batch_shape_train = (cf.batch_size_train,) + cf.input_shape
+
+        # test batch_size always be 1
+        if cf.batch_size_test != 1:
+            cf.batch_size_test = 1
         cf.batch_shape_test = (cf.batch_size_test,) + cf.input_shape
 
         # Get weights file name
         # path, _ = os.path.split(cf.weights_file)
         # if path == '':
         #     cf.weights_file = os.path.join(cf.savepath, cf.weights_file)
-        #
+
         # cf.checkpoint_path = os.path.join(cf.savepath, cf.pretrained_file)
+        # zzh
+        if cf.load_epoch_for_test is None:
+            cf.load_epoch_for_test = cf.n_epochs
 
         self.configuration = cf
         return cf
