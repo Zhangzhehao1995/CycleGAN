@@ -2,7 +2,6 @@
 
 """ training script for cycleGAN
 """
-
 from os.path import join
 from os import path, mkdir, getcwd, chdir, makedirs
 from getpass import getuser
@@ -18,7 +17,6 @@ from utils.logger import Logger
 
 # network
 from callbacks.callbacks_factory import Callbacks_Factory
-
 from generators.dataset_generators import Dataset_Generators
 from models.cyclegan import CycleGAN
 from tensorflow.keras.callbacks import EarlyStopping
@@ -31,7 +29,7 @@ OMP: Error #15: Initializing libiomp5.dylib, but found libiomp5.dylib already in
 OMP: Hint This means that multiple copies of the OpenMP runtime have been linked into the program. That is dangerous, since it can degrade performance or cause incorrect results. The best thing to do is to ensure that only a single OpenMP runtime is linked into the process, e.g. by avoiding static linking of the OpenMP runtime in any library. As an unsafe, unsupported, undocumented workaround you can set the environment variable KMP_DUPLICATE_LIB_OK=TRUE to allow the program to continue to execute, but that may cause crashes or silently produce incorrect results. For more information, please see http://www.intel.com/software/products/support/.
 """
 import os
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 os.environ["HDF5_USE_FILE_LOCKING"] = 'FALSE'
 
 class Experiment(object):
@@ -47,18 +45,18 @@ class Experiment(object):
         if self.cf.train_model:
             # Enable log file
             sys.stdout = Logger(self.cf.log_file)
-        print (' ---> Starting experiment: ' + self.cf.experiment_name + ' <---')
+        print(' ---> Starting experiment: ' + self.cf.experiment_name + ' <---')
 
         # Create the data generators
         train_gen, test_gen = Dataset_Generators().make(self.cf)
 
         # Build model
-        print ('\n > Building model...')
+        print('\n > Building model...')
         model = CycleGAN(self.cf)
         model.make()
 
         # Create the callbacks
-        print ('\n > Creating callbacks...')
+        print('\n > Creating callbacks...')
         cb = Callbacks_Factory().make(self.cf)
 
         try:
@@ -89,7 +87,8 @@ class Experiment(object):
             raise
 
         # Finish
-        print (' ---> Finished experiment: ' + self.cf.experiment_name + ' <---')
+        print(' ---> Finished experiment: ' + self.cf.experiment_name + ' <---')
+
 
 # Entry point of the script
 if __name__ == "__main__":
